@@ -781,22 +781,27 @@ function doSwitch() {
 
     case $action in
         switch|test)
-            # Build the generation and run the activate script. Note, we
-            # specify an output link so that it is treated as a GC root. This
-            # prevents an unfortunately timed GC from removing the generation
-            # before activation completes.
-            generation="$WORK_DIR/generation"
-
+            # Build the generation and capture its store path directly.
+            # We avoid --out-link into a tmpdir because it registers an
+            # indirect GC root in gcroots/auto/ that becomes stale when
+            # the tmpdir is cleaned up on exit. The resulting dangling
+            # roots keep build-time dependencies alive until the next
+            # nix-collect-garbage, causing them to be re-downloaded on
+            # every rebuild. Instead, we use --no-link/--no-out-link and
+            # rely on the nix-env --set below to protect the path as a
+            # proper profile GC root. This matches the approach used by
+            # darwin-rebuild in nix-darwin.
             setFlakeAttribute
             if [[ -v FLAKE_CONFIG_URI ]]; then
-                doBuildFlake \
+                generation=$(doBuildFlake \
                     "$FLAKE_CONFIG_URI.activationPackage" \
-                    --out-link "$generation" \
-                    ${PRINT_BUILD_LOGS+--print-build-logs}
+                    --no-link --json \
+                    ${PRINT_BUILD_LOGS+--print-build-logs} \
+                    | jq -r '.[0].outputs.out')
             else
-                doBuildAttr \
-                    --out-link "$generation" \
-                    --attr activationPackage
+                generation=$(doBuildAttr \
+                    --no-out-link \
+                    --attr activationPackage)
             fi
             ;;
         rollback)
@@ -933,27 +938,24 @@ function newsReadIdsFile() {
 
 # Builds the Home Manager news data file.
 #
-# Note, we suppress build output to remove unnecessary verbosity. We
-# put the output in the work directory to avoid the risk of an
-# unfortunately timed GC removing it.
+# Note, we suppress build output to remove unnecessary verbosity.
 function buildNews() {
     local newsNixFile="$1"
-    local newsJsonFile="$WORK_DIR/news.json"
+    local newsJsonFile
 
     if [[ -v FLAKE_CONFIG_URI ]]; then
         # TODO: Use check=false to make it more likely that the build succeeds.
-        doBuildFlake \
+        newsJsonFile=$(doBuildFlake \
             "$FLAKE_CONFIG_URI.config.news.json.output" \
-            --quiet \
-            --out-link "$newsJsonFile" \
+            --quiet --no-link --json \
+            | jq -r '.[0].outputs.out') \
             || return
     else
-        doBuildAttr \
-            --out-link "$newsJsonFile" \
+        newsJsonFile=$(doBuildAttr \
+            --no-out-link \
             --arg check false \
-            --attr config.news.json.output \
-            > /dev/null \
-        || return
+            --attr config.news.json.output) \
+            || return
     fi
 
     local extraArgs=()
