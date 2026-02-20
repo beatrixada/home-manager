@@ -226,6 +226,17 @@
           // (testChunks system)
           // (integrationTests system)
         );
+
+        # Re-export key tests as checks so Garnix CI can discover them.
+        checks = forCI (
+          system:
+          let
+            pkgs = nixpkgs.legacyPackages.${system};
+            inherit (pkgs) lib;
+          in
+          { test-all = (buildTestsNoBig system).test-all-enableBig-false-enableLegacyIfd-false; }
+          // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux (integrationTests system)
+        );
       }
     );
 }

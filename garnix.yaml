@@ -1,10 +1,7 @@
 builds:
   include:
-    # Module tests (both platforms)
-    - "legacyPackages.x86_64-linux.test-*"
-    - "legacyPackages.aarch64-darwin.test-*"
-    # Integration tests that exercise home-manager switch (Linux only — NixOS VMs)
-    - "legacyPackages.x86_64-linux.integration-test-*"
+    # All checks: module test-all + integration tests (Linux), module test-all (Darwin)
+    - "checks.*.*"
     # The home-manager package itself
     - "packages.x86_64-linux.home-manager"
     - "packages.aarch64-darwin.home-manager"
