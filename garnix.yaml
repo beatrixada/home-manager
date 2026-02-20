@@ -1,7 +1,13 @@
 builds:
   include:
-    # All checks: module test-all + integration tests (Linux), module test-all (Darwin)
-    - "checks.*.*"
+    # Module tests (all platforms)
+    - "checks.x86_64-linux.test-all"
+    - "checks.aarch64-darwin.test-all"
+    # Integration tests that work without network inside VM (Linux only)
+    - "checks.x86_64-linux.integration-nixos-basics"
+    - "checks.x86_64-linux.integration-nixos-legacy-profile-management"
+    - "checks.x86_64-linux.integration-rclone-agenix"
+    - "checks.x86_64-linux.integration-rclone-sops-nix"
     # The home-manager package itself
     - "packages.x86_64-linux.home-manager"
     - "packages.aarch64-darwin.home-manager"

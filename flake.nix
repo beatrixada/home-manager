@@ -228,14 +228,27 @@
         );
 
         # Re-export key tests as checks so Garnix CI can discover them.
+        # Only include integration tests that work without network inside
+        # the VM — standalone tests need network and fail on Garnix.
         checks = forCI (
           system:
           let
             pkgs = nixpkgs.legacyPackages.${system};
             inherit (pkgs) lib;
+            allIntegration = integrationTests system;
+            # These tests work on Garnix (no network needed inside VM).
+            garnixCompatible = lib.filterAttrs (
+              name: _:
+              lib.elem name [
+                "integration-nixos-basics"
+                "integration-nixos-legacy-profile-management"
+                "integration-rclone-agenix"
+                "integration-rclone-sops-nix"
+              ]
+            ) allIntegration;
           in
           { test-all = (buildTestsNoBig system).test-all-enableBig-false-enableLegacyIfd-false; }
-          // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux (integrationTests system)
+          // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux garnixCompatible
         );
       }
     );
